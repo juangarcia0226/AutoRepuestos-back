@@ -3,6 +3,7 @@ const express = require('express')
 const cors = require('cors')
 
 const productoRoutes = require('./routes/productoRoutes')
+const vehiculoRoutes = require('./routes/vehiculoRoutes')
 const { mongoConnect } = require('./configurations/database')
 
 mongoConnect()
@@ -16,6 +17,7 @@ app.set('port', process.env.PORT || 5000)
 app.use(cors())
 app.use(express.json())
 app.use('/api/v1/productos', productoRoutes)
+app.use('/api/v1/vehiculos', vehiculoRoutes)
 
 // arrancar el servidor en el puerto
 app.listen(app.get('port'), () => {

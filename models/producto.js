@@ -1,5 +1,27 @@
 const { Schema, model } = require('mongoose')
 
+// Vehículo al que le sirve el repuesto, con su rango de años
+const CompatibilidadSchema = new Schema({
+    marca: {
+        type: String,
+        required: [true, 'Marca del vehículo requerida'],
+        trim: true
+    },
+    modelo: {
+        type: String,
+        required: [true, 'Modelo del vehículo requerido'],
+        trim: true
+    },
+    desde: {
+        type: Number,
+        required: [true, 'Año inicial requerido']
+    },
+    hasta: {
+        type: Number,
+        required: [true, 'Año final requerido']
+    }
+}, { _id: false })
+
 const ProductoSchema = new Schema({
     nombre: {
         type: String,
@@ -42,9 +64,13 @@ const ProductoSchema = new Schema({
     ubicacion: {
         type: String,
         trim: true
+    },
+    compatibilidad: {
+        type: [CompatibilidadSchema],
+        default: []
     }
 }, {
-    // Mongoose llena las fechas automáticamente al crear y al actualizar
+    // Mongoose llena estas fechas automáticamente al crear y al actualizar
     timestamps: {
         createdAt: 'fechaCreacion',
         updatedAt: 'fechaActualizacion'
