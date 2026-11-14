@@ -72,7 +72,16 @@ const schemas = {
         required: ['marca', 'modelo', 'desde', 'hasta'],
         properties: {
             _id: { type: 'string', example: '64f1a2b3c4d5e6f708192a3c' },
-            ...compatibilidad.properties
+            ...compatibilidad.properties,
+            productos: { type: 'integer', readOnly: true, description: 'Productos que lo tienen como compatible', example: 4 }
+        }
+    },
+    VehiculoEdicion: {
+        type: 'object',
+        required: ['desde', 'hasta'],
+        properties: {
+            desde: { type: 'integer', example: 2010 },
+            hasta: { type: 'integer', example: 2020 }
         }
     },
     MovimientoEntrada: {
@@ -259,6 +268,38 @@ const paths = {
                 400: respuestaGlobal('DatosInvalidos'),
                 401: respuestaGlobal('NoAutorizado'),
                 409: respuestaGlobal('Conflicto')
+            }
+        }
+    },
+    '/api/v1/vehiculos/{id}': {
+        put: {
+            tags: ['Vehículos'],
+            summary: 'Actualizar los años de un vehículo',
+            description: 'Solo se pueden cambiar los años; la marca y el modelo no se modifican.',
+            parameters: [
+                { name: 'id', in: 'path', required: true, schema: { type: 'string' }, description: 'Id del vehículo' }
+            ],
+            requestBody: cuerpo('VehiculoEdicion'),
+            responses: {
+                200: respuesta('Vehículo actualizado', ref('Vehiculo')),
+                400: respuestaGlobal('DatosInvalidos'),
+                401: respuestaGlobal('NoAutorizado'),
+                404: respuestaGlobal('NoEncontrado')
+            }
+        },
+        delete: {
+            tags: ['Vehículos'],
+            summary: 'Eliminar un vehículo',
+            description: 'No se puede eliminar si algún producto lo tiene como compatible.',
+            parameters: [
+                { name: 'id', in: 'path', required: true, schema: { type: 'string' }, description: 'Id del vehículo' }
+            ],
+            responses: {
+                200: respuesta('Vehículo eliminado', ref('Error')),
+                400: respuestaGlobal('DatosInvalidos'),
+                401: respuestaGlobal('NoAutorizado'),
+                404: respuestaGlobal('NoEncontrado'),
+                409: respuesta('El vehículo está en uso por productos', ref('Error'))
             }
         }
     },
