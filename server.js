@@ -40,6 +40,26 @@ app.use('/api/v1/vehiculos', verificarToken, vehiculoRoutes)
 app.use('/api/v1/movimientos', verificarToken, movimientoRoutes)
 app.use('/api/v1/resumen', verificarToken, resumenRoutes)
 
+// ruta inexistente
+app.use((request, response) => {
+    response.status(404).json({
+        message: 'Ruta no encontrada'
+    })
+})
+
+// errores no controlados (por ejemplo, un JSON mal formado en el body)
+app.use((err, request, response, next) => {
+    if (err.type === 'entity.parse.failed') {
+        return response.status(400).json({
+            message: 'El cuerpo de la petición no es un JSON válido'
+        })
+    }
+    console.error(err)
+    response.status(500).json({
+        message: 'Error general'
+    })
+})
+
 // arrancar el servidor en el puerto
 app.listen(app.get('port'), () => {
     console.log('Servidor arriba en el puerto: ' + app.get('port'))
