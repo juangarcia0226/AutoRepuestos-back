@@ -1,7 +1,9 @@
 require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
+const swaggerUi = require('swagger-ui-express')
 
+const swaggerSpec = require('./configurations/swagger')
 const authRoutes = require('./routes/authRoutes')
 const productoRoutes = require('./routes/productoRoutes')
 const vehiculoRoutes = require('./routes/vehiculoRoutes')
@@ -24,6 +26,9 @@ app.set('port', process.env.PORT || 5000)
 // middlewares
 app.use(cors())
 app.use(express.json())
+
+// documentación (pública)
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 
 // rutas públicas
 app.use('/api/v1/auth', authRoutes)
