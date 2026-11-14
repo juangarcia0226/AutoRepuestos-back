@@ -34,7 +34,7 @@ const getMovimientos = async (request, response) => {
 const registrarMovimiento = async (request, response) => {
     const session = await mongoose.startSession()
     try {
-        const { tipo, productoId, cantidad, usuario } = request.body // destructuring
+        const { tipo, productoId, cantidad } = request.body // destructuring
         const unidades = Number(cantidad)
 
         if (!TIPOS.includes(tipo)) {
@@ -67,7 +67,7 @@ const registrarMovimiento = async (request, response) => {
             }
 
             const [creado] = await Movimiento.create(
-                [{ tipo, producto: producto._id, cantidad: unidades, usuario }],
+                [{ tipo, producto: producto._id, cantidad: unidades, usuario: request.usuario.nombre }],
                 { session }
             )
             movimiento = creado
