@@ -24,7 +24,8 @@ const app = express()
 app.set('port', process.env.PORT || 5000)
 
 // middlewares
-app.use(cors())
+const origenesPermitidos = (process.env.CORS_ORIGIN || 'http://localhost:5173').split(',').map((o) => o.trim())
+app.use(cors({ origin: origenesPermitidos }))
 app.use(express.json())
 
 // documentación (pública)
