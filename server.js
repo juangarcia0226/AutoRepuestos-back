@@ -5,11 +5,13 @@ const swaggerUi = require('swagger-ui-express')
 
 const swaggerSpec = require('./configurations/swagger')
 const authRoutes = require('./routes/authRoutes')
+const usuarioRoutes = require('./routes/usuarioRoutes')
 const productoRoutes = require('./routes/productoRoutes')
 const vehiculoRoutes = require('./routes/vehiculoRoutes')
 const movimientoRoutes = require('./routes/movimientoRoutes')
 const resumenRoutes = require('./routes/resumenRoutes')
 const verificarToken = require('./middlewares/verificarToken')
+const autorizarRoles = require('./middlewares/autorizarRoles')
 const { mongoConnect } = require('./configurations/database')
 
 if (!process.env.JWT_SECRET) {
@@ -39,6 +41,9 @@ app.use('/api/v1/productos', verificarToken, productoRoutes)
 app.use('/api/v1/vehiculos', verificarToken, vehiculoRoutes)
 app.use('/api/v1/movimientos', verificarToken, movimientoRoutes)
 app.use('/api/v1/resumen', verificarToken, resumenRoutes)
+
+// gestión de usuarios: solo administradores
+app.use('/api/v1/usuarios', verificarToken, autorizarRoles('admin'), usuarioRoutes)
 
 // ruta inexistente
 app.use((request, response) => {

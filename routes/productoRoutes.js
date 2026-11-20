@@ -7,6 +7,7 @@ const {
     actualizarProducto,
     eliminarProducto
 } = require('../controllers/productoController')
+const autorizarRoles = require('../middlewares/autorizarRoles')
 
 const router = Router()
 
@@ -17,10 +18,11 @@ router.get('/compatibles', buscarCompatibles)
 
 router.get('/:id', getProductoPorId)
 
-router.post('/', crearProducto)
+// Crear, editar y eliminar: solo administradores
+router.post('/', autorizarRoles('admin'), crearProducto)
 
-router.put('/:id', actualizarProducto)
+router.put('/:id', autorizarRoles('admin'), actualizarProducto)
 
-router.delete('/:id', eliminarProducto)
+router.delete('/:id', autorizarRoles('admin'), eliminarProducto)
 
 module.exports = router

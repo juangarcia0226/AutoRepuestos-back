@@ -145,7 +145,47 @@ const schemas = {
         properties: {
             id: { type: 'string' },
             nombre: { type: 'string', example: 'Administrador' },
-            correo: { type: 'string', example: 'admin@autorepuestos.com' }
+            correo: { type: 'string', example: 'admin@autorepuestos.com' },
+            rol: { type: 'string', enum: ['admin', 'operador'], example: 'admin' }
+        }
+    },
+    UsuarioGestion: {
+        type: 'object',
+        properties: {
+            _id: { type: 'string' },
+            nombre: { type: 'string', example: 'Laura Pérez' },
+            correo: { type: 'string', example: 'laura@autorepuestos.com' },
+            rol: { type: 'string', enum: ['admin', 'operador'], example: 'operador' },
+            activo: { type: 'boolean', example: true },
+            fechaCreacion: { type: 'string', format: 'date-time' },
+            fechaActualizacion: { type: 'string', format: 'date-time' }
+        }
+    },
+    UsuarioCrear: {
+        type: 'object',
+        required: ['nombre', 'correo', 'clave'],
+        properties: {
+            nombre: { type: 'string', example: 'Laura Pérez' },
+            correo: { type: 'string', example: 'laura@autorepuestos.com' },
+            clave: { type: 'string', minLength: 6, example: 'laura123' },
+            rol: { type: 'string', enum: ['admin', 'operador'], default: 'operador' }
+        }
+    },
+    UsuarioEditar: {
+        type: 'object',
+        properties: {
+            nombre: { type: 'string', example: 'Laura Pérez' },
+            rol: { type: 'string', enum: ['admin', 'operador'] },
+            activo: { type: 'boolean' },
+            clave: { type: 'string', minLength: 6, description: 'Si se envía, restablece la contraseña del usuario' }
+        }
+    },
+    CambioClave: {
+        type: 'object',
+        required: ['claveActual', 'claveNueva'],
+        properties: {
+            claveActual: { type: 'string', example: '123456' },
+            claveNueva: { type: 'string', minLength: 6, example: 'nueva123' }
         }
     },
     LoginRespuesta: {
@@ -180,6 +220,74 @@ const paths = {
             responses: {
                 200: respuesta('Datos del usuario', ref('Usuario')),
                 401: respuestaGlobal('NoAutorizado')
+            }
+        }
+    },
+    '/api/v1/auth/clave': {
+        put: {
+            tags: ['Auth'],
+            summary: 'Cambiar la contraseña propia',
+            requestBody: cuerpo('CambioClave'),
+            responses: {
+                200: respuesta('Contraseña actualizada', ref('Error')),
+                400: respuesta('Datos inválidos o contraseña actual incorrecta', ref('Error')),
+                401: respuestaGlobal('NoAutorizado')
+            }
+        }
+    },
+    '/api/v1/usuarios': {
+        get: {
+            tags: ['Usuarios'],
+            summary: 'Listar usuarios (solo administradores)',
+            responses: {
+                200: respuesta('Usuarios ordenados por nombre', arreglo(ref('UsuarioGestion'))),
+                401: respuestaGlobal('NoAutorizado'),
+                403: respuestaGlobal('Prohibido')
+            }
+        },
+        post: {
+            tags: ['Usuarios'],
+            summary: 'Crear un usuario (solo administradores)',
+            requestBody: cuerpo('UsuarioCrear'),
+            responses: {
+                201: respuesta('Usuario creado', ref('UsuarioGestion')),
+                400: respuestaGlobal('DatosInvalidos'),
+                401: respuestaGlobal('NoAutorizado'),
+                403: respuestaGlobal('Prohibido'),
+                409: respuestaGlobal('Conflicto')
+            }
+        }
+    },
+    '/api/v1/usuarios/{id}': {
+        put: {
+            tags: ['Usuarios'],
+            summary: 'Actualizar un usuario (solo administradores)',
+            description: 'Permite cambiar nombre, rol, estado y clave; el correo no se modifica. Un administrador no puede quitarse el rol ni desactivarse a sí mismo.',
+            parameters: [
+                { name: 'id', in: 'path', required: true, schema: { type: 'string' }, description: 'Id del usuario' }
+            ],
+            requestBody: cuerpo('UsuarioEditar'),
+            responses: {
+                200: respuesta('Usuario actualizado', ref('UsuarioGestion')),
+                400: respuestaGlobal('DatosInvalidos'),
+                401: respuestaGlobal('NoAutorizado'),
+                403: respuestaGlobal('Prohibido'),
+                404: respuestaGlobal('NoEncontrado')
+            }
+        },
+        delete: {
+            tags: ['Usuarios'],
+            summary: 'Eliminar un usuario (solo administradores)',
+            description: 'Un administrador no puede eliminar su propia cuenta.',
+            parameters: [
+                { name: 'id', in: 'path', required: true, schema: { type: 'string' }, description: 'Id del usuario' }
+            ],
+            responses: {
+                200: respuesta('Usuario eliminado', ref('Error')),
+                400: respuestaGlobal('DatosInvalidos'),
+                401: respuestaGlobal('NoAutorizado'),
+                403: respuestaGlobal('Prohibido'),
+                404: respuestaGlobal('NoEncontrado')
             }
         }
     },
@@ -357,7 +465,7 @@ const swaggerSpec = swaggerJsdoc({
         info: {
             title: 'API AutoRepuestos',
             version: '1.0.0',
-            description: 'API REST del sistema de gestión de inventario de AutoRepuestos.'
+            description: 'API REST del sistema de gestión de inventario de AutoRepuestos. Los usuarios con rol operador no pueden crear, editar ni eliminar productos o vehículos (responde 403); la gestión de usuarios es solo para administradores.'
         },
         servers: [{ url: `http://localhost:${PUERTO}` }],
         tags: [
@@ -365,7 +473,8 @@ const swaggerSpec = swaggerJsdoc({
             { name: 'Productos' },
             { name: 'Vehículos' },
             { name: 'Movimientos' },
-            { name: 'Resumen' }
+            { name: 'Resumen' },
+            { name: 'Usuarios' }
         ],
         // Todas las rutas piden token, salvo las que lo indiquen (login)
         security: [{ bearerAuth: [] }],
@@ -380,7 +489,8 @@ const swaggerSpec = swaggerJsdoc({
                 DatosInvalidos: respuesta('Datos inválidos', ref('Error')),
                 NoAutorizado: respuesta('Token requerido, inválido o expirado', ref('Error')),
                 NoEncontrado: respuesta('No encontrado', ref('Error')),
-                Conflicto: respuesta('Valor duplicado', ref('Error'))
+                Conflicto: respuesta('Valor duplicado', ref('Error')),
+                Prohibido: respuesta('Sin permiso para esta acción', ref('Error'))
             },
             schemas
         },

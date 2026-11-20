@@ -21,6 +21,14 @@ const UsuarioSchema = new Schema({
         required: [true, 'Clave requerida'],
         select: false
     },
+    rol: {
+        type: String,
+        enum: {
+            values: ['admin', 'operador'],
+            message: 'El rol debe ser admin u operador'
+        },
+        default: 'operador'
+    },
     activo: {
         type: Boolean,
         default: true
