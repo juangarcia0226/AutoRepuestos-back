@@ -79,8 +79,59 @@ const crearVehiculo = async (request, response) => {
     }
 }
 
+// Ajusta la compatibilidad de los productos a los nuevos años del vehículo:
+// el rango de cada producto se recorta para no salirse del rango del catálogo y,
+// si no queda ningún año en común, se quita el vehículo de ese producto.
+// Si el catálogo se amplía, los productos no cambian.
+const ajustarProductos = async (vehiculo, session) => {
+    const { marca, modelo, desde, hasta } = vehiculo
+
+    const productos = await Producto.find({
+        compatibilidad: { $elemMatch: { marca, modelo } }
+    }).session(session).lean()
+
+    let compatibilidadesQuitadas = 0
+    const operaciones = []
+
+    productos.forEach((producto) => {
+        let cambio = false
+        const compatibilidad = []
+
+        producto.compatibilidad.forEach((c) => {
+            if (c.marca !== marca || c.modelo !== modelo) {
+                compatibilidad.push(c)
+                return
+            }
+
+            const nuevoDesde = Math.max(c.desde, desde)
+            const nuevoHasta = Math.min(c.hasta, hasta)
+
+            // Sin años en común: se quita el vehículo de este producto
+            if (nuevoDesde > nuevoHasta) {
+                compatibilidadesQuitadas++
+                cambio = true
+                return
+            }
+
+            if (nuevoDesde !== c.desde || nuevoHasta !== c.hasta) cambio = true
+            compatibilidad.push({ ...c, desde: nuevoDesde, hasta: nuevoHasta })
+        })
+
+        if (cambio) {
+            operaciones.push({
+                updateOne: { filter: { _id: producto._id }, update: { $set: { compatibilidad } } }
+            })
+        }
+    })
+
+    if (operaciones.length > 0) await Producto.bulkWrite(operaciones, { session })
+
+    return { productosAjustados: operaciones.length, compatibilidadesQuitadas }
+}
+
 // Solo se pueden cambiar los años: marca y modelo identifican al vehículo en los productos
 const actualizarVehiculo = async (request, response) => {
+    const session = await mongoose.startSession()
     try {
         const { id } = request.params
         if (!idValido(id, response)) return
@@ -95,6 +146,7 @@ const actualizarVehiculo = async (request, response) => {
             return response.status(404).json({ message: 'Vehículo no encontrado' })
         }
 
+        const anterior = { desde: vehiculo.desde, hasta: vehiculo.hasta }
         if (desde !== undefined) vehiculo.desde = desde
         if (hasta !== undefined) vehiculo.hasta = hasta
 
@@ -102,11 +154,28 @@ const actualizarVehiculo = async (request, response) => {
         if (vehiculo.desde > vehiculo.hasta) {
             return response.status(400).json({ message: 'El año final no puede ser menor al año inicial' })
         }
+        await vehiculo.validate()
 
-        await vehiculo.save()
-        response.json(vehiculo)
+        const cambioAnios = vehiculo.desde !== anterior.desde || vehiculo.hasta !== anterior.hasta
+        let ajuste = { productosAjustados: 0, compatibilidadesQuitadas: 0 }
+
+        // El vehículo y los productos se actualizan juntos o no se actualiza nada
+        await session.withTransaction(async () => {
+            await Vehiculo.updateOne(
+                { _id: vehiculo._id },
+                { $set: { desde: vehiculo.desde, hasta: vehiculo.hasta } },
+                { session }
+            )
+            ajuste = cambioAnios
+                ? await ajustarProductos(vehiculo, session)
+                : { productosAjustados: 0, compatibilidadesQuitadas: 0 }
+        })
+
+        response.json({ ...vehiculo.toObject(), ajuste })
     } catch (e) {
         manejarError(e, response)
+    } finally {
+        await session.endSession()
     }
 }
 

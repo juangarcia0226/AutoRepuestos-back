@@ -73,7 +73,16 @@ const schemas = {
         properties: {
             _id: { type: 'string', example: '64f1a2b3c4d5e6f708192a3c' },
             ...compatibilidad.properties,
-            productos: { type: 'integer', readOnly: true, description: 'Productos que lo tienen como compatible', example: 4 }
+            productos: { type: 'integer', readOnly: true, description: 'Productos que lo tienen como compatible', example: 4 },
+            ajuste: {
+                type: 'object',
+                readOnly: true,
+                description: 'Solo en la respuesta del PUT: resultado del ajuste de compatibilidad de los productos',
+                properties: {
+                    productosAjustados: { type: 'integer', example: 3 },
+                    compatibilidadesQuitadas: { type: 'integer', example: 1 }
+                }
+            }
         }
     },
     VehiculoEdicion: {
@@ -275,7 +284,7 @@ const paths = {
         put: {
             tags: ['Vehículos'],
             summary: 'Actualizar los años de un vehículo',
-            description: 'Solo se pueden cambiar los años; la marca y el modelo no se modifican.',
+            description: 'Solo se pueden cambiar los años. Si el rango se reduce, la compatibilidad de los productos se recorta al nuevo rango, y se quita el vehículo de los productos que queden sin años en común. Si se amplía, los productos no cambian. El vehículo y los productos se actualizan en una transacción.',
             parameters: [
                 { name: 'id', in: 'path', required: true, schema: { type: 'string' }, description: 'Id del vehículo' }
             ],
