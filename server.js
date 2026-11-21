@@ -1,6 +1,8 @@
 require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
+const helmet = require('helmet')
+const mongoose = require('mongoose')
 const swaggerUi = require('swagger-ui-express')
 
 const swaggerSpec = require('./configurations/swagger')
@@ -13,14 +15,17 @@ const resumenRoutes = require('./routes/resumenRoutes')
 const verificarToken = require('./middlewares/verificarToken')
 const autorizarRoles = require('./middlewares/autorizarRoles')
 const { mongoConnect } = require('./configurations/database')
+const { validarEntorno } = require('./configurations/entorno')
 
-if (!process.env.JWT_SECRET) {
-    throw new Error('Falta JWT_SECRET en el archivo .env')
-}
-
-mongoConnect()
+validarEntorno()
 
 const app = express()
+
+// Detrás de un proxy (como Render) hay que indicar cuántos saltos confiar,
+// para que el límite de intentos vea la IP real del cliente
+if (process.env.TRUST_PROXY) {
+    app.set('trust proxy', Number(process.env.TRUST_PROXY))
+}
 
 // asignar puerto
 app.set('port', process.env.PORT || 5000)
@@ -30,8 +35,22 @@ const origenesPermitidos = (process.env.CORS_ORIGIN || 'http://localhost:5173').
 app.use(cors({ origin: origenesPermitidos }))
 app.use(express.json())
 
-// documentación (pública)
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
+// documentación (pública, se puede apagar con DOCS_PUBLICAS=false);
+// va antes de helmet para que su política de contenido no afecte a Swagger UI
+if (process.env.DOCS_PUBLICAS !== 'false') {
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
+}
+
+// encabezados de seguridad para el resto de la API
+app.use(helmet())
+
+// ruta de salud (pública): sirve para comprobar que el servicio y la base de datos responden
+app.get('/api/v1/salud', (request, response) => {
+    const baseDeDatos = mongoose.connection.readyState === 1
+    response.status(baseDeDatos ? 200 : 503).json({
+        estado: baseDeDatos ? 'ok' : 'sin conexión a la base de datos'
+    })
+})
 
 // rutas públicas
 app.use('/api/v1/auth', authRoutes)
@@ -65,7 +84,17 @@ app.use((err, request, response, next) => {
     })
 })
 
-// arrancar el servidor en el puerto
-app.listen(app.get('port'), () => {
-    console.log('Servidor arriba en el puerto: ' + app.get('port'))
-})
+// El servidor solo empieza a escuchar cuando la base de datos está conectada
+const iniciar = async () => {
+    try {
+        await mongoConnect()
+        app.listen(app.get('port'), () => {
+            console.log('Servidor arriba en el puerto: ' + app.get('port'))
+        })
+    } catch (e) {
+        console.error('No se pudo iniciar el servidor')
+        process.exit(1)
+    }
+}
+
+iniciar()

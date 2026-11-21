@@ -1,6 +1,5 @@
-const swaggerJsdoc = require('swagger-jsdoc')
+const swaggerJsdoc = ({ definition }) => definition
 
-const PUERTO = process.env.PORT || 5000
 
 /* ---------- Ayudas para no repetir ---------- */
 const ref = (nombre) => ({ $ref: `#/components/schemas/${nombre}` })
@@ -467,7 +466,8 @@ const swaggerSpec = swaggerJsdoc({
             version: '1.0.0',
             description: 'API REST del sistema de gestión de inventario de AutoRepuestos. Los usuarios con rol operador no pueden crear, editar ni eliminar productos o vehículos (responde 403); la gestión de usuarios es solo para administradores.'
         },
-        servers: [{ url: `http://localhost:${PUERTO}` }],
+         // Relativa: usa la dirección desde la que se abre la documentación (local o desplegada)
+        servers: [{ url: '/' }],
         tags: [
             { name: 'Auth' },
             { name: 'Productos' },
